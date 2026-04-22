@@ -90,7 +90,8 @@ uv run python scripts/parse_data_dictionary.py /path/to/deid_uf_data_dictionary.
 ### Configuration
 
 All config via environment variables (see `.env.example`):
-- `CLINICAL_RECORDS_SERVER`, `CLINICAL_RECORDS_DATABASE`, `CLINICAL_RECORDS_USERNAME`, `CLINICAL_RECORDS_PASSWORD`
+- `CLINICAL_RECORDS_USERNAME`, `CLINICAL_RECORDS_PASSWORD` — **required** (per-user)
+- `CLINICAL_RECORDS_SERVER`, `CLINICAL_RECORDS_DATABASE` — optional override. Defaults hard-coded to the UCSF CDW deployment (`QCDIDDWDB001.ucsfmedicalcenter.org` / `CDW_NEW`) in `config.py` (`DEFAULT_CDW_SERVER`, `DEFAULT_CDW_DATABASE`)
 - `CDW_NAMESPACE` (tool name prefix, default "CDW")
 - `CDW_SCHEMA` (database schema for table qualification, default "deid_uf")
 - `CDW_LOG_LEVEL`

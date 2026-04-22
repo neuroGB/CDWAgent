@@ -22,13 +22,15 @@ extensions:
       - "cdwagent"
     timeout: 600
     envs:
-      CLINICAL_RECORDS_SERVER: "your-server.example"
-      CLINICAL_RECORDS_DATABASE: "CDW_NEW"
       CLINICAL_RECORDS_USERNAME: "your-username"
       CLINICAL_RECORDS_PASSWORD: "your-password"
       CDW_SCHEMA: "deid_uf"
       CDW_NAMESPACE: "CDW"
       CDW_LOG_LEVEL: "INFO"
+      # Server and database are hard-coded to the UCSF CDW
+      # (QCDIDDWDB001.ucsfmedicalcenter.org / CDW_NEW). Uncomment to override:
+      # CLINICAL_RECORDS_SERVER: "other-host.example"
+      # CLINICAL_RECORDS_DATABASE: "OTHER_DB"
 ```
 
 Then launch a BioRouter session as usual:
@@ -70,7 +72,7 @@ extensions:
     type: stdio
     cmd: uvx
     args: ["--from", "git+https://github.com/neuroGB/CDWAgent", "cdwagent"]
-    envs: { CLINICAL_RECORDS_SERVER: "...", CLINICAL_RECORDS_DATABASE: "...", ... }
+    envs: { CLINICAL_RECORDS_USERNAME: "...", CLINICAL_RECORDS_PASSWORD: "..." }
 ```
 
 ### The crossmap tool

@@ -53,25 +53,26 @@ extensions:
     args: ["--from", "git+https://github.com/neuroGB/CDWAgent", "cdwagent"]
     timeout: 600
     envs:
-      CLINICAL_RECORDS_SERVER: "your-server"
-      CLINICAL_RECORDS_DATABASE: "your-database"
       CLINICAL_RECORDS_USERNAME: "your-username"
       CLINICAL_RECORDS_PASSWORD: "your-password"
       CDW_SCHEMA: "deid_uf"
+      # Server and database default to the UCSF CDW
+      # (QCDIDDWDB001.ucsfmedicalcenter.org / CDW_NEW). Override only if needed:
+      # CLINICAL_RECORDS_SERVER: "other-host.example"
+      # CLINICAL_RECORDS_DATABASE: "OTHER_DB"
 ```
 
 ### BioRouter CLI
 
 {/* <CLIExtensionInstructions
   name="CDWAgent"
-  envVars={["CLINICAL_RECORDS_SERVER", "CLINICAL_RECORDS_DATABASE", "CLINICAL_RECORDS_USERNAME", "CLINICAL_RECORDS_PASSWORD"]}
+  envVars={["CLINICAL_RECORDS_USERNAME", "CLINICAL_RECORDS_PASSWORD"]}
   command="uvx --from git+https://github.com/neuroGB/CDWAgent cdwagent"
 /> */}
 
 ```bash
 biorouter session --with-extension \
-  "CLINICAL_RECORDS_SERVER=... CLINICAL_RECORDS_DATABASE=... \
-   CLINICAL_RECORDS_USERNAME=... CLINICAL_RECORDS_PASSWORD=... \
+  "CLINICAL_RECORDS_USERNAME=... CLINICAL_RECORDS_PASSWORD=... \
    uvx --from git+https://github.com/neuroGB/CDWAgent cdwagent"
 ```
 
@@ -79,10 +80,10 @@ biorouter session --with-extension \
 
 | Variable | Required | Description |
 |---|---|---|
-| `CLINICAL_RECORDS_SERVER` | yes | SQL Server hostname |
-| `CLINICAL_RECORDS_DATABASE` | yes | CDW database name |
 | `CLINICAL_RECORDS_USERNAME` | yes | SQL Server username |
 | `CLINICAL_RECORDS_PASSWORD` | yes | SQL Server password (mark sensitive in keyring) |
+| `CLINICAL_RECORDS_SERVER` | no | SQL Server hostname (default `QCDIDDWDB001.ucsfmedicalcenter.org`) |
+| `CLINICAL_RECORDS_DATABASE` | no | CDW database name (default `CDW_NEW`) |
 | `CDW_SCHEMA` | no | Database schema (default `deid_uf`) |
 | `CDW_NAMESPACE` | no | Tool name prefix (default `CDW`) — change when running multiple CDWAgent instances in one session |
 | `CDW_LOG_LEVEL` | no | `DEBUG` / `INFO` / `WARNING` / `ERROR` |

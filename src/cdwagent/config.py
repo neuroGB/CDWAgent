@@ -3,10 +3,17 @@
 from pydantic import BaseModel, Field
 
 
+# UCSF CDW deployment — fixed for the target environment. Users do not set these.
+# An env var override is still honored (e.g. if the hostname ever changes) but is
+# not expected in normal operation.
+DEFAULT_CDW_SERVER = "QCDIDDWDB001.ucsfmedicalcenter.org"
+DEFAULT_CDW_DATABASE = "CDW_NEW"
+
+
 class ClinicalDBConfig(BaseModel):
     """Clinical Data Warehouse database configuration (SQL Server)"""
-    server: str = Field(..., description="CDW database server host")
-    database: str = Field(..., description="CDW database name")
+    server: str = Field(DEFAULT_CDW_SERVER, description="CDW database server host")
+    database: str = Field(DEFAULT_CDW_DATABASE, description="CDW database name")
     username: str = Field(..., description="CDW database username")
     password: str = Field(..., description="CDW database password")
 

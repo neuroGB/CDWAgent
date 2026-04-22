@@ -209,24 +209,32 @@ def main(
     path: str = "/mcp/",
 ) -> None:
     """Main entry point for the CDWAgent server"""
-    if not all([clinical_records_server, clinical_records_database,
-                clinical_records_username, clinical_records_password]):
-        raise ValueError("All clinical database credentials must be provided")
+    if not clinical_records_username or not clinical_records_password:
+        raise ValueError(
+            "CLINICAL_RECORDS_USERNAME and CLINICAL_RECORDS_PASSWORD must be set"
+        )
 
+    # Server and database have hard-coded defaults in ClinicalDBConfig (UCSF CDW).
+    # Only pass overrides when explicitly set so Pydantic defaults apply otherwise.
+    db_kwargs = {
+        "username": clinical_records_username,
+        "password": clinical_records_password,
+    }
+    if clinical_records_server:
+        db_kwargs["server"] = clinical_records_server
+    if clinical_records_database:
+        db_kwargs["database"] = clinical_records_database
+
+    clinical_db = ClinicalDBConfig(**db_kwargs)
     config = CDWConfig(
-        clinical_db=ClinicalDBConfig(
-            server=clinical_records_server,
-            database=clinical_records_database,
-            username=clinical_records_username,
-            password=clinical_records_password,
-        ),
+        clinical_db=clinical_db,
         namespace=namespace,
         db_schema=schema,
         log_level=log_level,
     )
 
     logger.info("Starting CDWAgent - Clinical Data Warehouse MCP Server")
-    logger.info(f"Database: {clinical_records_server}/{clinical_records_database}")
+    logger.info(f"Database: {clinical_db.server}/{clinical_db.database}")
 
     mcp = create_cdw_server(config)
     mcp.run()

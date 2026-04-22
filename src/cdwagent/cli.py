@@ -15,6 +15,8 @@ def main() -> None:
 
     logger.info("Starting CDWAgent - Clinical Data Warehouse MCP Server")
 
+    # CLINICAL_RECORDS_SERVER / _DATABASE have hard-coded defaults in config.py
+    # (UCSF CDW deployment). Env vars are accepted as override only.
     server_main(
         clinical_records_server=os.getenv("CLINICAL_RECORDS_SERVER"),
         clinical_records_database=os.getenv("CLINICAL_RECORDS_DATABASE"),

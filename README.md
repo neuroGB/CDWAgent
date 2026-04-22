@@ -118,13 +118,15 @@ All configuration is via environment variables (see `.env.example`):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `CLINICAL_RECORDS_SERVER` | Yes | SQL Server hostname |
-| `CLINICAL_RECORDS_DATABASE` | Yes | Database name |
 | `CLINICAL_RECORDS_USERNAME` | Yes | SQL Server username |
 | `CLINICAL_RECORDS_PASSWORD` | Yes | SQL Server password |
+| `CLINICAL_RECORDS_SERVER` | No | SQL Server hostname (default: `QCDIDDWDB001.ucsfmedicalcenter.org`) |
+| `CLINICAL_RECORDS_DATABASE` | No | Database name (default: `CDW_NEW`) |
 | `CDW_NAMESPACE` | No | Tool name prefix (default: `CDW`) |
 | `CDW_SCHEMA` | No | Database schema for table qualification (default: `deid_uf`) |
 | `CDW_LOG_LEVEL` | No | Logging level (default: `INFO`) |
+
+The server and database default to the UCSF CDW deployment. Set the env vars only to override (e.g. a different host or a development database).
 
 ## Use with BioRouter
 
@@ -143,17 +145,17 @@ extensions:
     args: ["--from", "git+https://github.com/neuroGB/CDWAgent", "cdwagent"]
     timeout: 600
     envs:
-      CLINICAL_RECORDS_SERVER: "your-server"
-      CLINICAL_RECORDS_DATABASE: "your-database"
       CLINICAL_RECORDS_USERNAME: "your-username"
       CLINICAL_RECORDS_PASSWORD: "your-password"
       CDW_SCHEMA: "deid_uf"
 ```
 
+Server and database are hard-coded to the UCSF CDW deployment; override with `CLINICAL_RECORDS_SERVER` / `CLINICAL_RECORDS_DATABASE` only if needed.
+
 Or via CLI:
 
 ```bash
-biorouter session --with-extension "CLINICAL_RECORDS_SERVER=... CLINICAL_RECORDS_DATABASE=... CLINICAL_RECORDS_USERNAME=... CLINICAL_RECORDS_PASSWORD=... uvx --from git+https://github.com/neuroGB/CDWAgent cdwagent"
+biorouter session --with-extension "CLINICAL_RECORDS_USERNAME=... CLINICAL_RECORDS_PASSWORD=... uvx --from git+https://github.com/neuroGB/CDWAgent cdwagent"
 ```
 
 **Tip — pairing with OMOPAgent:** enable both extensions to translate between the two clinical data representations. Ask BioRouter *"for OMOP person_id 12345, pull lab trends from the CDW side"* and it will call `CDW-crossmap_patient` then `CDW-get_labs`. See [`docs/BIOROUTER.md`](docs/BIOROUTER.md) for operational details (timeouts, malware check, tool-name disambiguation).
