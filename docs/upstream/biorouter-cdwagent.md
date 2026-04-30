@@ -21,7 +21,7 @@ description: De-identified Epic Caboodle Clinical Data Warehouse (SQL Server)
 
 # CDWAgent
 
-CDWAgent connects BioRouter to a de-identified **Epic Caboodle Clinical Data Warehouse** (SQL Server) and gives the LLM 18 read-only tools for schema discovery, clinical queries, clinical notes, cohort building, concept lookup, CSV export, and OMOP→CDW patient crossmapping.
+CDWAgent connects BioRouter to a de-identified **Epic Caboodle Clinical Data Warehouse** (SQL Server) and gives the LLM 21 read-only tools for schema discovery, clinical queries, clinical notes (verbatim and NLP-extracted concepts via cTAKES), cohort building, terminology lookup (ICD/RxNorm/LOINC/CPT), CSV export, and OMOP→CDW patient crossmapping.
 
 It is a sibling of [**UCSFOMOPAgent**](https://github.com/BaranziniLab/UCSFOMOPAgent) — both can be enabled in the same BioRouter session. CDWAgent's `crossmap_patient` tool resolves OMOP `person_id` values to CDW `PatientDurableKey` so the LLM can pivot between the two schemas mid-session.
 
@@ -90,13 +90,13 @@ biorouter session --with-extension \
 
 ## Tools
 
-18 tools, all namespace-prefixed (default `CDW-`):
+21 tools, all namespace-prefixed (default `CDW-`):
 
 - **Schema:** `get_database_overview`, `describe_table`, `search_schema`
 - **Clinical queries:** `query`, `get_patient_demographics`, `crossmap_patient`, `get_encounters`, `get_medications`, `get_diagnoses`, `get_labs`
-- **Notes:** `search_notes`, `get_note`
+- **Notes:** `search_note_concepts` (NLP layer, cTAKES), `search_note_sdoh` (cTAKES SDOH module), `search_notes` (verbatim, cohort-scoped), `get_note`
 - **Export:** `export_query_to_csv`
-- **Concepts:** `search_diagnoses_by_code`, `search_medications_by_code`, `search_procedures_by_code`
+- **Concepts:** `search_diagnoses_by_code`, `search_medications_by_code`, `search_labs_by_code`, `search_procedures_by_code`
 - **Stats:** `summarize_table`, `cohort_summary`
 
 ## Example prompts

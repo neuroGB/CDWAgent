@@ -13,7 +13,7 @@ Architecture is based on the [MedCP](https://github.com/BaranziniLab/MedCP) temp
 
 ## Features
 
-- 18 MCP tools organized into 6 domain modules
+- 21 MCP tools organized into 6 domain modules
 - 3 guided workflow prompts for common research tasks
 - OMOP → CDW patient crossmapping with birth-date sanity check
 - Read-only SQL enforcement with comprehensive write-blocking
@@ -25,53 +25,66 @@ Architecture is based on the [MedCP](https://github.com/BaranziniLab/MedCP) temp
 
 ## Tools
 
-### Schema Discovery
+All tool names are namespace-prefixed with `CDW-` at runtime so they coexist with sibling agents (e.g., `UCSFOMOPAgent`) inside a single BioRouter session. The descriptions below are the canonical entry points each tool exposes; for the per-tool flow diagrams see [`docs/agent-flows/02-tool-flows/`](docs/agent-flows/02-tool-flows/).
+
+### Schema Discovery (3)
+
+These tools read from the bundled `schema_reference.json` and require no database connection — they work offline for exploratory research.
 
 | Tool | Description |
 |------|-------------|
-| `get_database_overview` | Overview of all CDW tables with descriptions, patient/encounter flags, and column counts |
-| `describe_table` | Detailed column info for a specific table: names, types, descriptions, foreign keys |
-| `search_schema` | Keyword search across table and column names/descriptions |
+| `get_database_overview` | List every CDW table with one-line description, patient/encounter linkage flags, and column counts. The agent uses this as its first move when a research question lacks an obvious target table. |
+| `describe_table` | Return the column list for a named table — names, data types, descriptions, and foreign-key relationships. Used to construct schema-aware SQL after a candidate table has been identified. |
+| `search_schema` | Keyword search across table and column names plus their descriptions. Useful when the user describes a clinical concept (e.g. "lab results") rather than a table name. |
 
-### Clinical Queries
+### Clinical Queries (7)
 
-| Tool | Description |
-|------|-------------|
-| `query` | Execute a read-only SQL SELECT query with security validation; results as CSV |
-| `get_patient_demographics` | Demographics for a patient from PatientDim (most recent record) |
-| `crossmap_patient` | Resolve an OMOP `person_id` to a CDW `PatientDurableKey` via `person_source_value = PatientEpicId`, with birth-date sanity check |
-| `get_encounters` | Encounter history from EncounterFact, ordered by date |
-| `get_medications` | Medication orders from MedicationOrderFact with treatment duration |
-| `get_diagnoses` | Diagnosis history from DiagnosisEventFact |
-| `get_labs` | Lab results from LabComponentResultFact |
-
-### Clinical Notes
+These tools execute SELECT-only SQL against the de-identified Epic Caboodle warehouse. Every executed statement is validated by `ClinicalQueryValidator` (read-only enforcement, no semicolon chaining, blocked write verbs) and appended to the SQL audit log at `$TMPDIR/cdwagent_sql.log`.
 
 | Tool | Description |
 |------|-------------|
-| `search_notes` | Search clinical notes by patient and keyword; returns metadata and text snippets |
-| `get_note` | Retrieve the full text of a clinical note by its key |
+| `query` | Execute a read-only SQL `SELECT` query (or `WITH ... SELECT`) and return the rows as CSV. The validator blocks every write verb. The cohort subquery pattern (`WHERE PatientDurableKey IN (...)`) is the recommended composition primitive for cross-fact queries. |
+| `get_patient_demographics` | Return the most recent demographic record for a `PatientDurableKey` from `PatientDim` (filtered by `IsCurrent = 1`). Sex, birth date, race, ethnicity, language, status. |
+| `get_encounters` | Encounter history from `EncounterFact` for one patient, ordered by `DateKey` descending. Includes department specialty, encounter type, and visit type. |
+| `get_medications` | Medication orders from `MedicationOrderFact` for one patient, with `OrderedDateKey`/`StartDateKey`/`EndDateKey` so the agent can reconstruct treatment duration. |
+| `get_diagnoses` | Diagnosis history from `DiagnosisEventFact` for one patient, ordered by `StartDateKey`. Joined to `DiagnosisDim` for human-readable names and to `DiagnosisTerminologyDim` for the originating code system. |
+| `get_labs` | Lab results from `LabComponentResultFact` for one patient. Returns the `Value` string field rather than `NumericValue` (de-identified and unreliable for analysis). |
+| `crossmap_patient` | Resolve an OMOP `person_id` to a CDW `PatientDurableKey` via `OMOP_DEID.dbo.person.person_source_value = CDW_NEW.deid_uf.PatientDim.PatientEpicId` with `IsCurrent = 1`. Returns demographics plus a `birth_date_match` boolean for sanity-checking the join. The bridge tool when a study starts on the OMOP side and needs CDW depth. |
 
-### Data Export
+### Clinical Notes (4)
 
-| Tool | Description |
-|------|-------------|
-| `export_query_to_csv` | Execute a read-only SQL query and save results to a CSV file |
-
-### Concept Search
-
-| Tool | Description |
-|------|-------------|
-| `search_diagnoses_by_code` | Search diagnoses by ICD/SNOMED code or name |
-| `search_medications_by_code` | Search medications by code, brand name, or generic name |
-| `search_procedures_by_code` | Search procedures by CPT/HCPCS code or name |
-
-### Statistics
+A two-tier retrieval surface: an NLP concept layer (cTAKES) for fast semantic search, and a verbatim layer for chart review or exact-phrase matching. The cTAKES layer is the preferred entry point for clinical concepts; verbatim retrieval is reserved for cases where the NLP layer would not normalise the phrase (specific provider names, exact dose phrasing, idiosyncratic wording).
 
 | Tool | Description |
 |------|-------------|
-| `summarize_table` | Summary statistics for a table: row counts, null rates, sample distributions |
-| `cohort_summary` | Aggregate demographics for a cohort defined by a subquery |
+| `search_note_concepts` | Search the NLP-extracted concept layer (`note_concepts`, populated by cTAKES) by canonical text or UMLS CUI, optionally restricted to a cohort of one or more `PatientDurableKey` values. Defaults exclude negated mentions and family-history mentions; historical mentions are kept (commonly relevant for retrospective research). Population-mode (no cohort) applies an early-termination optimisation and emits a `[NOTICE: ...]` banner that the agent must surface to the user. |
+| `search_note_sdoh` | Search Social Determinants of Health concepts (`note_concepts_sdoh`, populated by the cTAKES SDOH module) — housing instability, food insecurity, employment, transportation barriers, substance use, social isolation, financial strain. Use for equity and vulnerability research where structured fields rarely capture the signal. Same population-mode notice convention as `search_note_concepts`. |
+| `search_notes` | Verbatim text retrieval over `note_text` and `note_metadata`, scoped to a cohort of one or more `PatientDurableKey` values. Supports an optional keyword filter; without a keyword the call performs a chronological chart review. SQL Server `IN`-clause cap of 2000 patients. |
+| `get_note` | Retrieve the full text of one clinical note by its `deid_note_key`, typically discovered via `search_note_concepts` or `search_notes`. |
+
+### Concept Search (4)
+
+These tools resolve human-language concept names or terminology codes into the surrogate keys used by fact tables. The agent uses them as the first step in any cohort-building workflow: it finds the relevant `*Key` values and then composes a `... IN (...)` filter on the corresponding fact table.
+
+| Tool | Description |
+|------|-------------|
+| `search_diagnoses_by_code` | Resolve ICD/SNOMED codes or diagnosis names against `DiagnosisTerminologyDim` joined to `DiagnosisDim`. Returns `DiagnosisKey` values for use in `DiagnosisEventFact.DiagnosisKey IN (...)`. |
+| `search_medications_by_code` | Resolve NDC/RxNorm codes, brand names, or generic names against `MedicationCodeDim`. Returns `MedicationKey` values for use in `MedicationOrderFact.MedicationKey IN (...)`. |
+| `search_labs_by_code` | Resolve LOINC codes or lab component names (e.g. "hemoglobin a1c", "creatinine") against `LabComponentDim`. Returns `LabComponentKey` values for use in `LabComponentResultFact.LabComponentKey IN (...)`. Note the LOINC column is `LoincCode`, not `Loinc`. |
+| `search_procedures_by_code` | Resolve CPT/HCPCS codes or procedure names against `ProcedureTerminologyDim`. Returns `ProcedureTerminologyKey` values for use in `ProcedureEventFact.ProcedureTerminologyKey IN (...)`. |
+
+### Data Export (1)
+
+| Tool | Description |
+|------|-------------|
+| `export_query_to_csv` | Execute a read-only SQL query and write the rows to a CSV file at a caller-specified path. Validator and audit log apply identically to `query`. The target directory must exist. |
+
+### Statistics (2)
+
+| Tool | Description |
+|------|-------------|
+| `summarize_table` | Per-table descriptive statistics: row count, per-column null rates, and sample value distributions for low-cardinality categorical columns. |
+| `cohort_summary` | Aggregate demographics (age statistics, sex, race, ethnicity) for a cohort defined by a SQL subquery returning `PatientDurableKey`. Used as the closing summary at the end of a cohort-building workflow. |
 
 ## Guided Prompts
 

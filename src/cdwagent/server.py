@@ -79,8 +79,70 @@ Clinical notes:
 
 >>> TOOL HINT <<<
 - For table metadata beyond this list: call describe_table(table_name) or get_database_overview().
-- For code/concept lookup (ICD, NDC, CPT): call search_diagnoses_by_code / search_medications_by_code / search_procedures_by_code.
+- For code/concept lookup: search_diagnoses_by_code (ICD/SNOMED), search_medications_by_code (NDC/RxNorm/brand/generic), search_labs_by_code (LOINC), search_procedures_by_code (CPT/HCPCS). Each returns a *Key column to use in IN (...) cohort filters on the corresponding fact table.
 - For OMOP→CDW patient resolution: crossmap_patient(person_id).
+
+>>> NOTES — DECISION TREE FOR PATIENT-NOTE QUERIES <<<
+
+Step 1 — DEFINE THE COHORT FIRST.
+  The note tools accept a cohort (list of one or more PatientDurableKeys).
+  A single patient is just a cohort of size 1. Build the cohort UPSTREAM
+  via structured queries:
+    search_diagnoses_by_code / search_medications_by_code / etc. →
+    query the relevant *Fact table → extract PatientDurableKey list →
+    pass to the note tool.
+  For population-wide phenotype discovery, omit the cohort and let the
+  NLP layer do the filtering (search_note_concepts only).
+
+Step 2 — CHOOSE THE NOTE TOOL by what you are looking for:
+
+  Clinical concept mention (disease, drug, symptom, procedure):
+    → search_note_concepts(canon_text=..., patient_durable_keys=cohort?)
+      Uses the NLP-extracted concept layer (cTAKES). Fast WHEN scoped to a
+      cohort. Population-wide queries (no cohort) require a full LIKE scan
+      of note_concepts and may take 30-180s — pass a cohort if you have one.
+      Defaults exclude_negated=True, exclude_family_history=True.
+
+  Social Determinants of Health (smoking, housing, employment, ...):
+    → search_note_sdoh(canon_text=..., patient_durable_keys=cohort?)
+      Backed by the cTAKES SDOH module. Use for equity / vulnerability
+      research where structured fields rarely capture the signal. Same
+      performance caveat: cohort-restricted is fast, population-wide is slow.
+
+  Chart review or verbatim phrase match:
+    → search_notes(patient_durable_keys=cohort, keyword=optional)
+      Whole-text retrieval. Cohort size ≤ 2000. Noisier — matches occur in
+      differentials, assessments, history. Prefer search_note_concepts
+      for clinical concepts.
+
+  Full text of one specific note:
+    → get_note(note_key)
+
+Step 3 — DISAMBIGUATION (CRITICAL — surface to the user when ambiguous):
+  "Find diabetic patients" can mean:
+    (a) Formally diagnosed → search_diagnoses_by_code → DiagnosisEventFact
+        Higher specificity. Coded by clinician for billing/problem list.
+    (b) Mentioned in any note → search_note_concepts(canon_text='diabetes')
+        Higher sensitivity. Includes assessment, differential, "rule out".
+  These are DIFFERENT populations with a sensitivity/specificity tradeoff.
+  When the user's question is ambiguous, ASK which they want — or run both
+  and present the difference.
+
+>>> METHODOLOGICAL TRANSPARENCY (NON-NEGOTIABLE) <<<
+Some tools may surface a `[NOTICE: ...]` banner at the top of their result.
+A NOTICE indicates that the tool applied an internal optimisation, default
+filter, or approximation that the user may not be aware of and that affects
+the interpretation of the returned data — for example, early-termination
+on population-wide note searches that sacrifices strict recency for speed,
+or default exclusions on negation / family history.
+
+When a tool result begins with `[NOTICE: ...]`, the agent MUST surface that
+methodological choice in the response to the user. Quote or paraphrase the
+notice plainly (e.g. "Note: this search used a population-mode approximation
+that returns the first ~400 matches rather than the strict most-recent. For
+exact recency, restrict to a patient cohort."). Suppressing notices is a
+clinical research integrity violation — researchers must be able to assess
+whether the result fits their study's evidentiary requirements.
 """
 
 

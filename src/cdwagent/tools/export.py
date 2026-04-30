@@ -12,6 +12,7 @@ from mcp.types import ToolAnnotations
 
 from cdwagent.config import ClinicalDBConfig
 from cdwagent.db import get_connection
+from cdwagent.sql_log import log_sql as _log_sql_to_file
 from cdwagent.validation import ClinicalQueryValidator
 
 logger = logging.getLogger("CDWAgent")
@@ -55,6 +56,7 @@ def register_export_tools(mcp: FastMCP, namespace_prefix: str, clinical_config: 
         if not output_path.parent.exists():
             raise ToolError(f"Directory does not exist: {output_path.parent}")
 
+        _log_sql_to_file(sql_query)
         conn = get_connection(clinical_config)
         try:
             cursor = conn.cursor()

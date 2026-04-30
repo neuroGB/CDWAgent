@@ -10,6 +10,7 @@ from mcp.types import ToolAnnotations
 
 from cdwagent.config import ClinicalDBConfig
 from cdwagent.db import get_connection
+from cdwagent.sql_log import log_sql as _log_sql_to_file
 from cdwagent.validation import ClinicalQueryValidator
 
 logger = logging.getLogger("CDWAgent")
@@ -21,6 +22,9 @@ def _execute_readonly_query(config: ClinicalDBConfig, sql: str, row_limit: int =
     """Execute a validated read-only query and return CSV-formatted results"""
     if not ClinicalQueryValidator.is_read_only_clinical_query(sql):
         raise ToolError("Only SELECT queries are allowed. Write operations are blocked for security.")
+
+    # Audit log: append SQL to file (independent of stdout/stderr routing).
+    _log_sql_to_file(sql)
 
     conn = get_connection(config)
     try:

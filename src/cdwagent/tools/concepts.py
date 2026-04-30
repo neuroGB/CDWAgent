@@ -10,6 +10,7 @@ from mcp.types import ToolAnnotations
 
 from cdwagent.config import ClinicalDBConfig
 from cdwagent.db import get_connection
+from cdwagent.sql_log import log_sql as _log_sql_to_file
 from cdwagent.validation import ClinicalQueryValidator
 
 logger = logging.getLogger("CDWAgent")
@@ -19,6 +20,7 @@ def _run_query(config: ClinicalDBConfig, sql: str) -> str:
     """Run a validated query and return CSV"""
     if not ClinicalQueryValidator.is_read_only_clinical_query(sql):
         raise ToolError("Only SELECT queries are allowed.")
+    _log_sql_to_file(sql)
     conn = get_connection(config)
     try:
         cursor = conn.cursor()
@@ -89,6 +91,40 @@ def register_concept_tools(mcp: FastMCP, namespace_prefix: str, clinical_config:
             f"FROM {schema}.MedicationCodeDim mc "
             f"WHERE mc.Code LIKE '%{search_term}%' OR mc.MedicationName LIKE '%{search_term}%' "
             f"OR mc.MedicationGenericName LIKE '%{search_term}%'"
+        )
+        result = _run_query(clinical_config, sql)
+        return ToolResult(content=[TextContent(type="text", text=result)])
+
+    @mcp.tool(
+        name=f"{namespace_prefix}search_labs_by_code",
+        annotations=ToolAnnotations(
+            title="Search Labs by LOINC or Name",
+            readOnlyHint=True,
+            destructiveHint=False,
+            idempotentHint=True,
+            openWorldHint=False
+        )
+    )
+    def search_labs_by_code(
+        search_term: str = Field(..., description="LOINC code (e.g. '4548-4' for HbA1c) or lab component name (e.g. 'hemoglobin a1c', 'creatinine')"),
+        row_limit: int = Field(50, description="Maximum results to return")
+    ) -> ToolResult:
+        """Search LabComponentDim for laboratory components matching a LOINC code or name.
+
+        Returns lab component keys, LOINC codes, names, and component categories.
+        Use the returned `LabComponentKey` values in `LabComponentResultFact`
+        WHERE LabComponentKey IN (...) to retrieve actual results — analogous
+        to how `search_diagnoses_by_code` feeds DiagnosisEventFact and
+        `search_medications_by_code` feeds MedicationOrderFact.
+
+        Note: column is `LoincCode` (not `Loinc`)."""
+        sql = (
+            f"SELECT TOP {row_limit} lc.LabComponentKey, lc.LoincCode, "
+            f"lc.Name, lc.BaseName, lc.Status "
+            f"FROM {schema}.LabComponentDim lc "
+            f"WHERE lc.LoincCode LIKE '%{search_term}%' "
+            f"OR lc.Name LIKE '%{search_term}%' "
+            f"OR lc.BaseName LIKE '%{search_term}%'"
         )
         result = _run_query(clinical_config, sql)
         return ToolResult(content=[TextContent(type="text", text=result)])

@@ -96,16 +96,34 @@ All config via environment variables (see `.env.example`):
 - `CDW_SCHEMA` (database schema for table qualification, default "deid_uf")
 - `CDW_LOG_LEVEL`
 
-### 18 MCP Tools (namespace-prefixed with `CDW-`)
+### 21 MCP Tools (namespace-prefixed with `CDW-`)
 
 | Module | Tools |
 |---|---|
 | schema.py | `get_database_overview`, `describe_table`, `search_schema` |
 | queries.py | `query`, `get_patient_demographics`, `crossmap_patient`, `get_encounters`, `get_medications`, `get_diagnoses`, `get_labs` |
-| notes.py | `search_notes`, `get_note` |
+| notes.py | `search_note_concepts`, `search_note_sdoh`, `search_notes`, `get_note` |
 | export.py | `export_query_to_csv` |
-| concepts.py | `search_diagnoses_by_code`, `search_medications_by_code`, `search_procedures_by_code` |
+| concepts.py | `search_diagnoses_by_code`, `search_medications_by_code`, `search_labs_by_code`, `search_procedures_by_code` |
 | stats.py | `summarize_table`, `cohort_summary` |
+
+`search_note_concepts` and `search_note_sdoh` were added in v0.4.0 to expose the
+NLP-extracted concept layer (`note_concepts`, `note_concepts_sdoh`, populated by
+cTAKES) so that clinical-concept searches do not require full-text scans of
+`note_text`. `search_notes` continues to serve verbatim chart review and was
+generalised to accept a cohort of one or more `PatientDurableKey` values.
+
+`search_labs_by_code` was added in v0.4.2 to close the symmetry of the
+`search_*_by_code` family: every structured terminology lookup (diagnosis /
+medication / lab / procedure) now follows the same `code-or-name → *Key →
+fact-table IN (...)` pattern.
+
+In v0.4.3 the population-mode SQL plan for `search_note_concepts` and
+`search_note_sdoh` was rewritten as a derived subquery with an early `TOP
+{row_limit*4}` cap, trading strict recency for an order-of-magnitude speedup
+on whole-table `LIKE` filters. When the population path runs, the tool
+prepends a `[NOTICE: ...]` banner that the agent is required to surface to
+the user (see "METHODOLOGICAL TRANSPARENCY" in `CDW_SERVER_INSTRUCTIONS`).
 
 ### Key Tables (schema-qualified with `deid_uf.`)
 
