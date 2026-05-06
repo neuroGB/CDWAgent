@@ -6,6 +6,22 @@ Built for clinical researchers who need natural-language access to EHR data with
 
 Architecture is based on the [MedCP](https://github.com/BaranziniLab/MedCP) template by the UCSF Baranzini Lab, with a modular tool registry, expanded clinical tools, and no knowledge graph dependency.
 
+## BioRouter Extension
+
+**[Download cdwagent.brxt](https://github.com/BaranziniLab/CDWAgent/releases/latest/download/cdwagent.brxt)**
+
+Drag the `.brxt` file into BioRouter's **Extensions → Add extension** dialog. BioRouter will install the virtual environment automatically and prompt for required credentials.
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CLINICAL_RECORDS_USERNAME` | ✅ | — | UCSF network username (e.g. `CAMPUS\youruser`) |
+| `CLINICAL_RECORDS_PASSWORD` | ✅ | — | UCSF network password |
+| `CLINICAL_RECORDS_SERVER` | optional | `QCDIDDWDB001.ucsfmedicalcenter.org` | SQL Server hostname |
+| `CLINICAL_RECORDS_DATABASE` | optional | `CDW_NEW` | Database name |
+| `CDW_NAMESPACE` | optional | `CDW` | Tool namespace prefix |
+| `CDW_SCHEMA` | optional | `deid_uf` | SQL schema name |
+| `CDW_LOG_LEVEL` | optional | `INFO` | Logging level |
+
 ## Authors
 
 - **Gianmarco Bellucci**

@@ -1,0 +1,65 @@
+{
+  "name": "cdwagent",
+  "display_name": "CDWAgent",
+  "description": "Read-only MCP access to UCSF Epic Caboodle Clinical Data Warehouse.",
+  "version": "0.4.3",
+  "entry_point": "cdwagent",
+  "repository": "https://github.com/BaranziniLab/CDWAgent",
+  "tools_count": 21,
+  "env_vars": [
+    {
+      "key": "CLINICAL_RECORDS_USERNAME",
+      "required": true,
+      "auto_propagate": false,
+      "description": "UCSF network username (e.g. CAMPUS\\youruser)",
+      "secret": true
+    },
+    {
+      "key": "CLINICAL_RECORDS_PASSWORD",
+      "required": true,
+      "auto_propagate": false,
+      "description": "UCSF network password",
+      "secret": true
+    },
+    {
+      "key": "CLINICAL_RECORDS_SERVER",
+      "required": false,
+      "auto_propagate": true,
+      "default": "QCDIDDWDB001.ucsfmedicalcenter.org",
+      "description": "SQL Server hostname",
+      "secret": false
+    },
+    {
+      "key": "CLINICAL_RECORDS_DATABASE",
+      "required": false,
+      "auto_propagate": true,
+      "default": "CDW_NEW",
+      "description": "Database name",
+      "secret": false
+    },
+    {
+      "key": "CDW_NAMESPACE",
+      "required": false,
+      "auto_propagate": true,
+      "default": "CDW",
+      "description": "Tool namespace prefix",
+      "secret": false
+    },
+    {
+      "key": "CDW_SCHEMA",
+      "required": false,
+      "auto_propagate": true,
+      "default": "deid_uf",
+      "description": "SQL schema name",
+      "secret": false
+    },
+    {
+      "key": "CDW_LOG_LEVEL",
+      "required": false,
+      "auto_propagate": true,
+      "default": "INFO",
+      "description": "Logging level",
+      "secret": false
+    }
+  ]
+}
